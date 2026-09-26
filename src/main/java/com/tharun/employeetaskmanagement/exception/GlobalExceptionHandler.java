@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Map;
 
+
 /*
  Handles exceptions thrown by REST controllers.
  This keeps error responses clean and consistent.
@@ -20,6 +21,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleUserNotFound(
             UserNotFoundException exception) {
+
+        // Create a simple error response for the API client.
+        Map<String, String> error = Map.of(
+                "message", exception.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(error);
+    }
+    /*
+     * Handles EmployeeNotFoundException and returns HTTP 404.
+     */
+    @ExceptionHandler(EmployeeNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleEmployeeNotFound(
+            EmployeeNotFoundException exception) {
 
         // Create a simple error response for the API client.
         Map<String, String> error = Map.of(
