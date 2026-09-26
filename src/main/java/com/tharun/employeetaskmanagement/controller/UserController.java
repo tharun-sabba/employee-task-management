@@ -4,6 +4,8 @@ import com.tharun.employeetaskmanagement.entity.User;
 import com.tharun.employeetaskmanagement.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /*
   Controller for handling User-related API requests.
   It receives HTTP requests and passes the work to the Service layer.
@@ -39,5 +41,16 @@ public class UserController {
         // Send the User to the Service layer for saving.
 
         return userService.saveUser(user);
+
+    }
+    /*
+     * Returns all users stored in the database.
+     * Calls the Service layer to retrieve the users.
+     */
+    @GetMapping("/api/users")
+    public List<User> getAllUsers() {
+
+        // Ask the Service to retrieve all users.
+        return userService.getAllUsers();
     }
 }
