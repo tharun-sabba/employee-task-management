@@ -25,11 +25,21 @@ public class UserService {
     }
 
     /*
-     * Retrieves all users from the database.
-     * The repository provides the findAll() method through JpaRepository.
+      Retrieves all users from the database.
+      The repository provides the findAll() method through JpaRepository.
      */
     public List<User> getAllUsers() {
         return userRepository.findAll();
+    }
+    /*
+      Retrieves a user by their ID.
+      findById() is provided by JpaRepository.
+     */
+    public User getUserById(Long id) {
+
+        // Search the database for the user with the given ID.
+        return userRepository.findById(id)
+                .orElse(null);
     }
 }
 

@@ -5,6 +5,7 @@ import com.tharun.employeetaskmanagement.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.web.bind.annotation.PathVariable;
 
 /*
   Controller for handling User-related API requests.
@@ -44,13 +45,23 @@ public class UserController {
 
     }
     /*
-     * Returns all users stored in the database.
-     * Calls the Service layer to retrieve the users.
+     Returns all users stored in the database.
+      Calls the Service layer to retrieve the users.
      */
     @GetMapping("/api/users")
     public List<User> getAllUsers() {
 
         // Ask the Service to retrieve all users.
         return userService.getAllUsers();
+    }
+    /*
+      Retrieves a single user by their ID.
+      The ID is taken from the URL path.
+     */
+    @GetMapping("/api/users/{id}")
+    public User getUserById(@PathVariable Long id) {
+
+        // Send the ID to the Service layer.
+        return userService.getUserById(id);
     }
 }
