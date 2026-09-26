@@ -41,6 +41,30 @@ public class UserService {
         return userRepository.findById(id)
                 .orElse(null);
     }
+    /*
+     * Updates an existing user using the given ID.
+     * First finds the user, updates its values, and then saves it.
+     */
+    public User updateUser(Long id, User updatedUser) {
+
+        // Find the existing user in the database.
+        User existingUser = userRepository.findById(id)
+                .orElse(null);
+
+        // If the user does not exist, return null for now.
+        if (existingUser == null) {
+            return null;
+        }
+
+        // Update the existing user's details.
+        existingUser.setEmail(updatedUser.getEmail());
+        existingUser.setPassword(updatedUser.getPassword());
+        existingUser.setRole(updatedUser.getRole());
+        existingUser.setStatus(updatedUser.getStatus());
+
+        // Save the updated user back to the database.
+        return userRepository.save(existingUser);
+    }
 }
 
 /*@Service

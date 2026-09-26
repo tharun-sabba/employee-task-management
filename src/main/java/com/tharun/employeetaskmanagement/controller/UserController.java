@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.PutMapping;
 
 /*
   Controller for handling User-related API requests.
@@ -63,5 +65,13 @@ public class UserController {
 
         // Send the ID to the Service layer.
         return userService.getUserById(id);
+    }
+    @PutMapping("/api/users/{id}")
+    public User updateUser(
+            @PathVariable long id,
+            @RequestBody User updatedUser
+    ){
+        // Send the ID and updated data to the Service layer.
+        return userService.updateUser(id, updatedUser);
     }
 }
