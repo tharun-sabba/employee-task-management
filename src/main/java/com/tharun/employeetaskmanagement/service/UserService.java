@@ -5,6 +5,7 @@ import com.tharun.employeetaskmanagement.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import com.tharun.employeetaskmanagement.exception.UserNotFoundException;
 
 // Marks this class as a Service component.
 // Spring will manage this class and use it for business logic.
@@ -32,14 +33,15 @@ public class UserService {
         return userRepository.findAll();
     }
     /*
-      Retrieves a user by their ID.
-      findById() is provided by JpaRepository.
+     * Retrieves a user by their ID.
+     * If the user does not exist, an exception is thrown.
      */
     public User getUserById(Long id) {
 
         // Search the database for the user with the given ID.
         return userRepository.findById(id)
-                .orElse(null);
+                .orElseThrow(() ->
+                        new UserNotFoundException("User not found with id: " + id));
     }
     /*
      * Updates an existing user using the given ID.
