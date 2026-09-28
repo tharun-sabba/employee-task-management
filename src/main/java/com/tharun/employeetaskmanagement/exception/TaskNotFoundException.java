@@ -4,14 +4,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 /*
- * Exception thrown when an employee is not found.
+ * Exception thrown when a task is not found.
  * Spring returns HTTP 404 Not Found for this exception.
  */
 @ResponseStatus(HttpStatus.NOT_FOUND)
-public class EmployeeNotFoundException extends RuntimeException {
+public class TaskNotFoundException extends RuntimeException {
 
-    public EmployeeNotFoundException(String message) {
+    public TaskNotFoundException(String message) {
         super(message);
     }
-
 }
