@@ -1,10 +1,12 @@
 package com.tharun.employeetaskmanagement.controller;
 
-import com.tharun.employeetaskmanagement.entity.Employee;
+import com.tharun.employeetaskmanagement.dto.EmployeeRequestDTO;
+import com.tharun.employeetaskmanagement.dto.EmployeeResponseDTO;
 import com.tharun.employeetaskmanagement.service.EmployeeService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
-import org.springframework.web.bind.annotation.PatchMapping;
 
 /*
  * Controller for handling Employee-related API requests.
@@ -15,66 +17,58 @@ public class EmployeeController {
 
     private final EmployeeService employeeService;
 
-    /*
-     * Constructor injection.
-     * Spring provides the EmployeeService object automatically.
-     */
     public EmployeeController(EmployeeService employeeService) {
         this.employeeService = employeeService;
     }
 
     /*
-     * Creates an Employee profile for an existing User.
-     * The user ID is taken from the URL.
+     * Creates a new Employee for an existing User.
      */
     @PostMapping("/api/employees/{userId}")
-    public Employee createEmployee(
+    public EmployeeResponseDTO createEmployee(
             @PathVariable Long userId,
-            @RequestBody Employee employee) {
+            @Valid @RequestBody EmployeeRequestDTO requestDTO) {
 
-        // Send the user ID and employee details to the Service layer.
-        return employeeService.createEmployee(userId, employee);
+        return employeeService.createEmployee(userId, requestDTO);
     }
+
     /*
-     * Retrieves all employees from the database.
-     * Calls the Service layer to fetch the employee records.
+     * Retrieves all employees.
      */
     @GetMapping("/api/employees")
-    public List<Employee> getAllEmployees() {
+    public List<EmployeeResponseDTO> getAllEmployees() {
 
-        // Ask the Service layer for all employees.
         return employeeService.getAllEmployees();
     }
+
     /*
-     * Retrieves a single employee using the employee ID.
-     * The ID is taken from the URL path.
+     * Retrieves one employee using the employee ID.
      */
     @GetMapping("/api/employees/{id}")
-    public Employee getEmployeeById(@PathVariable Long id) {
+    public EmployeeResponseDTO getEmployeeById(
+            @PathVariable Long id) {
 
-        // Send the employee ID to the Service layer.
         return employeeService.getEmployeeById(id);
     }
+
     /*
-     * Updates an existing employee using the employee ID from the URL.
-     * The updated employee details come from the request body.
+     * Updates an existing employee.
      */
     @PutMapping("/api/employees/{id}")
-    public Employee updateEmployee(
+    public EmployeeResponseDTO updateEmployee(
             @PathVariable Long id,
-            @RequestBody Employee updatedEmployee) {
+            @Valid @RequestBody EmployeeRequestDTO requestDTO) {
 
-        // Send the employee ID and updated details to the Service layer.
-        return employeeService.updateEmployee(id, updatedEmployee);
+        return employeeService.updateEmployee(id, requestDTO);
     }
+
     /*
-     * Deactivates an employee's User account.
-     * The employee ID is taken from the URL.
+     * Deactivates the User linked to the Employee.
      */
     @PatchMapping("/api/employees/{id}/status")
-    public Employee deactivateEmployee(@PathVariable Long id) {
+    public EmployeeResponseDTO deactivateEmployee(
+            @PathVariable Long id) {
 
-        // Send the employee ID to the Service layer.
         return employeeService.deactivateEmployee(id);
     }
 }

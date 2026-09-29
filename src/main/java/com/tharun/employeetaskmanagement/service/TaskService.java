@@ -1,36 +1,32 @@
 package com.tharun.employeetaskmanagement.service;
 
-import com.tharun.employeetaskmanagement.repository.EmployeeRepository;
-import com.tharun.employeetaskmanagement.repository.TaskRepository;
-import org.springframework.stereotype.Service;
+import com.tharun.employeetaskmanagement.dto.TaskRequestDTO;
+import com.tharun.employeetaskmanagement.dto.TaskResponseDTO;
 import com.tharun.employeetaskmanagement.entity.Employee;
 import com.tharun.employeetaskmanagement.entity.Task;
 import com.tharun.employeetaskmanagement.enums.TaskStatus;
 import com.tharun.employeetaskmanagement.exception.EmployeeNotFoundException;
+import com.tharun.employeetaskmanagement.exception.InactiveEmployeeException;
+import com.tharun.employeetaskmanagement.exception.InvalidTaskStatusException;
+import com.tharun.employeetaskmanagement.exception.TaskNotFoundException;
+import com.tharun.employeetaskmanagement.exception.TaskSubmissionException;
+import com.tharun.employeetaskmanagement.repository.EmployeeRepository;
+import com.tharun.employeetaskmanagement.repository.TaskRepository;
+import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 import java.util.List;
-import com.tharun.employeetaskmanagement.exception.TaskNotFoundException;
-import com.tharun.employeetaskmanagement.exception.InvalidTaskStatusException;
-import com.tharun.employeetaskmanagement.exception.TaskSubmissionException;
-import com.tharun.employeetaskmanagement.exception.InactiveEmployeeException;
+
 /*
  * Service layer for Task-related business logic.
- * It uses TaskRepository to manage tasks and EmployeeRepository
- * to verify the employee assigned to a task.
+ * It handles task creation, status changes, and submission.
  */
 @Service
 public class TaskService {
 
-    // Repository used to access Task data in the database.
     private final TaskRepository taskRepository;
-
-    // Repository used to find and verify employees.
     private final EmployeeRepository employeeRepository;
 
-    /*
-     * Constructor injection.
-     * Spring provides both repository objects automatically.
-     */
     public TaskService(
             TaskRepository taskRepository,
             EmployeeRepository employeeRepository) {
@@ -38,149 +34,201 @@ public class TaskService {
         this.taskRepository = taskRepository;
         this.employeeRepository = employeeRepository;
     }
-    /*
-     * Creates a new task and assigns it to an existing active employee.
-     */
-    public Task createTask(Long employeeId, Task task) {
 
-        // Find the employee who should receive the task.
+    /*
+     * Creates a new Task and assigns it to an Employee.
+     * The server controls the initial status and creation time.
+     */
+    public TaskResponseDTO createTask(
+            Long employeeId,
+            TaskRequestDTO requestDTO) {
+
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() ->
                         new EmployeeNotFoundException(
                                 "Employee not found with id: " + employeeId));
 
-        /*
-         * Inactive employees should not receive new tasks.
-         */
-        if (!"ACTIVE".equals(employee.getUser().getStatus())) {
+        if (employee.getUser() != null
+                && "INACTIVE".equalsIgnoreCase(employee.getUser().getStatus())) {
+
             throw new InactiveEmployeeException(
-                    "Cannot assign a task to an inactive employee");
+                    "Cannot assign task to an inactive employee");
         }
 
-        // Link the task to the selected employee.
-        task.setAssignedTo(employee);
+        Task task = new Task();
 
-        // Every newly created task starts in the ASSIGNED state.
+        task.setTitle(requestDTO.getTitle());
+        task.setDescription(requestDTO.getDescription());
+        task.setDueDate(requestDTO.getDueDate());
+
+        /*
+         * New tasks always start with ASSIGNED status.
+         */
         task.setStatus(TaskStatus.ASSIGNED);
 
-        // Record when the task was created.
+        task.setAssignedTo(employee);
         task.setCreatedAt(LocalDateTime.now());
 
-        // Save the task in the database.
-        return taskRepository.save(task);
-    }
-    /*
-     * Retrieves all tasks from the database.
-     * The repository provides the findAll() method through JpaRepository.
-     */
-    public List<Task> getAllTasks() {
+        Task savedTask = taskRepository.save(task);
 
-        // Fetch all task records from the database.
-        return taskRepository.findAll();
+        return convertToResponseDTO(savedTask);
     }
-    /*
-     * Retrieves a task by its ID.
-     * Throws an exception if the task does not exist.
-     */
-    public Task getTaskById(Long id) {
 
-        // Search the database for the task.
-        return taskRepository.findById(id)
+    /*
+     * Retrieves all tasks.
+     */
+    public List<TaskResponseDTO> getAllTasks() {
+
+        return taskRepository.findAll()
+                .stream()
+                .map(this::convertToResponseDTO)
+                .toList();
+    }
+
+    /*
+     * Retrieves one task by ID.
+     */
+    public TaskResponseDTO getTaskById(Long id) {
+
+        Task task = taskRepository.findById(id)
                 .orElseThrow(() ->
                         new TaskNotFoundException(
                                 "Task not found with id: " + id));
-    }
-    /*
-     * Updates the status of an existing task.
-     * Only valid status transitions are allowed.
-     */
-    public Task updateTaskStatus(Long taskId, TaskStatus newStatus) {
 
-        // Find the existing task.
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() ->
-                        new TaskNotFoundException(
-                                "Task not found with id: " + taskId));
-
-        // Get the current status of the task.
-        TaskStatus currentStatus = task.getStatus();
-
-        // Check whether the requested status transition is valid.
-        if (!isValidStatusTransition(currentStatus, newStatus)) {
-            throw new InvalidTaskStatusException(
-                    "Invalid status transition from "
-                            + currentStatus + " to " + newStatus);
-        }
-
-        // Update the task status.
-        task.setStatus(newStatus);
-
-        // Save the updated task.
-        return taskRepository.save(task);
+        return convertToResponseDTO(task);
     }
 
     /*
-     * Checks whether a task can move from its current status
-     * to the requested new status.
+     * Updates the status of a task.
+     * Only valid workflow transitions are allowed.
      */
-    private boolean isValidStatusTransition(
-            TaskStatus currentStatus,
+    public TaskResponseDTO updateTaskStatus(
+            Long id,
             TaskStatus newStatus) {
 
-        return switch (currentStatus) {
-            case ASSIGNED -> newStatus == TaskStatus.IN_PROGRESS;
-            case IN_PROGRESS -> newStatus == TaskStatus.SUBMITTED;
-            case SUBMITTED -> newStatus == TaskStatus.UNDER_REVIEW;
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() ->
+                        new TaskNotFoundException(
+                                "Task not found with id: " + id));
+
+        TaskStatus currentStatus = task.getStatus();
+
+        boolean validTransition = switch (currentStatus) {
+
+            case ASSIGNED ->
+                    newStatus == TaskStatus.IN_PROGRESS;
+
+            case IN_PROGRESS ->
+                    newStatus == TaskStatus.SUBMITTED;
+
+            case SUBMITTED ->
+                    newStatus == TaskStatus.UNDER_REVIEW;
+
             case UNDER_REVIEW ->
                     newStatus == TaskStatus.COMPLETED
                             || newStatus == TaskStatus.CHANGES_REQUESTED;
-            case CHANGES_REQUESTED -> newStatus == TaskStatus.IN_PROGRESS;
-            case COMPLETED -> false;
-        };
-    }
-    /*
-     * Retrieves all tasks assigned to a specific employee.
-     */
-    public List<Task> getTasksByEmployee(Long employeeId) {
 
-        // Make sure the employee exists before searching for tasks.
+            case CHANGES_REQUESTED ->
+                    newStatus == TaskStatus.IN_PROGRESS;
+
+            case COMPLETED ->
+                    false;
+        };
+
+        if (!validTransition) {
+            throw new InvalidTaskStatusException(
+                    "Invalid task status transition from "
+                            + currentStatus
+                            + " to "
+                            + newStatus);
+        }
+
+        task.setStatus(newStatus);
+
+        Task savedTask = taskRepository.save(task);
+
+        return convertToResponseDTO(savedTask);
+    }
+
+    /*
+     * Retrieves all tasks assigned to a particular employee.
+     */
+    public List<TaskResponseDTO> getTasksByEmployee(
+            Long employeeId) {
+
         employeeRepository.findById(employeeId)
                 .orElseThrow(() ->
                         new EmployeeNotFoundException(
                                 "Employee not found with id: " + employeeId));
 
-        // Fetch all tasks assigned to the employee.
-        return taskRepository.findByAssignedToId(employeeId);
+        return taskRepository.findByAssignedToId(employeeId)
+                .stream()
+                .map(this::convertToResponseDTO)
+                .toList();
     }
-    /*
-     * Submits a task for review.
-     * The employee must be assigned to the task,
-     * and the task must currently be IN_PROGRESS.
-     */
-    public Task submitTask(Long taskId, Long employeeId) {
 
-        // Find the task.
+    /*
+     * Submits a task by the employee to whom it is assigned.
+     */
+    public TaskResponseDTO submitTask(
+            Long taskId,
+            Long employeeId) {
+
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() ->
                         new TaskNotFoundException(
                                 "Task not found with id: " + taskId));
 
-        // Verify that the task belongs to the employee submitting it.
-        if (!task.getAssignedTo().getId().equals(employeeId)) {
+        if (task.getAssignedTo() == null
+                || !task.getAssignedTo().getId().equals(employeeId)) {
+
             throw new TaskSubmissionException(
                     "Employee is not assigned to this task");
         }
 
-        // A task can only be submitted when it is IN_PROGRESS.
         if (task.getStatus() != TaskStatus.IN_PROGRESS) {
+
             throw new TaskSubmissionException(
-                    "Only tasks in IN_PROGRESS status can be submitted");
+                    "Task can only be submitted when it is IN_PROGRESS");
         }
 
-        // Move the task to SUBMITTED status.
         task.setStatus(TaskStatus.SUBMITTED);
 
-        // Save the updated task.
-        return taskRepository.save(task);
+        Task savedTask = taskRepository.save(task);
+
+        return convertToResponseDTO(savedTask);
+    }
+
+    /*
+     * Converts a Task entity into a safe response DTO.
+     * Only selected Employee and User information is included.
+     */
+    private TaskResponseDTO convertToResponseDTO(Task task) {
+
+        TaskResponseDTO responseDTO = new TaskResponseDTO();
+
+        responseDTO.setId(task.getId());
+        responseDTO.setTitle(task.getTitle());
+        responseDTO.setDescription(task.getDescription());
+        responseDTO.setStatus(task.getStatus());
+        responseDTO.setDueDate(task.getDueDate());
+        responseDTO.setCreatedAt(task.getCreatedAt());
+
+        if (task.getAssignedTo() != null) {
+
+            Employee employee = task.getAssignedTo();
+
+            responseDTO.setEmployeeId(employee.getId());
+            responseDTO.setEmployeeName(employee.getName());
+            responseDTO.setEmployeeDepartment(
+                    employee.getDepartment());
+
+            if (employee.getUser() != null) {
+                responseDTO.setEmployeeEmail(
+                        employee.getUser().getEmail());
+            }
+        }
+
+        return responseDTO;
     }
 }

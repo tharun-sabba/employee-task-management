@@ -1,17 +1,16 @@
 package com.tharun.employeetaskmanagement.controller;
 
+import com.tharun.employeetaskmanagement.dto.UserRequestDTO;
+import com.tharun.employeetaskmanagement.dto.UserResponseDTO;
 import com.tharun.employeetaskmanagement.entity.User;
 import com.tharun.employeetaskmanagement.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.PutMapping;
-
+import jakarta.validation.Valid;
 /*
-  Controller for handling User-related API requests.
-  It receives HTTP requests and passes the work to the Service layer.
+ * Controller for handling User-related API requests.
+ * It receives HTTP requests and passes the work to UserService.
  */
 @RestController
 public class UserController {
@@ -19,59 +18,64 @@ public class UserController {
     private final UserService userService;
 
     /*
-      Constructor injection.
-      Spring automatically provides the UserService object.
+     * Constructor injection.
+     * Spring automatically provides the UserService object.
      */
     public UserController(UserService userService) {
         this.userService = userService;
     }
 
     /*
-      Test endpoint used to check whether the User controller is working.
+     * Test endpoint used to check whether the User controller is working.
      */
     @GetMapping("/api/users/test")
     public String testUserApi() {
+
         return "User API is working";
     }
 
     /*
-     Creates a new User.
-     @RequestBody converts the JSON request into a User object.
+     * Creates a new User.
+     * The request body is validated before reaching the Service layer.
      */
     @PostMapping("/api/users")
-    public User createUser(@RequestBody User user) {
+    public UserResponseDTO createUser(
+            @Valid @RequestBody UserRequestDTO requestDTO) {
 
-        // Send the User to the Service layer for saving.
-
-        return userService.saveUser(user);
-
+        // Send the validated request DTO to the Service layer.
+        return userService.saveUser(requestDTO);
     }
+
     /*
-     Returns all users stored in the database.
-      Calls the Service layer to retrieve the users.
+     * Retrieves all users from the database.
      */
     @GetMapping("/api/users")
-    public List<User> getAllUsers() {
+    public List<UserResponseDTO> getAllUsers() {
 
-        // Ask the Service to retrieve all users.
+        // Ask the Service layer to retrieve all users.
         return userService.getAllUsers();
     }
+
     /*
-      Retrieves a single user by their ID.
-      The ID is taken from the URL path.
+     * Retrieves a single User using the ID from the URL.
      */
     @GetMapping("/api/users/{id}")
-    public User getUserById(@PathVariable Long id) {
+    public UserResponseDTO getUserById(
+            @PathVariable Long id) {
 
         // Send the ID to the Service layer.
         return userService.getUserById(id);
     }
+    /*
+     * Updates an existing User.
+     * The request body is validated before reaching the Service layer.
+     */
     @PutMapping("/api/users/{id}")
-    public User updateUser(
-            @PathVariable long id,
-            @RequestBody User updatedUser
-    ){
-        // Send the ID and updated data to the Service layer.
-        return userService.updateUser(id, updatedUser);
+    public UserResponseDTO updateUser(
+            @PathVariable Long id,
+            @Valid @RequestBody UserRequestDTO requestDTO) {
+
+        // Send the validated request data to the Service layer.
+        return userService.updateUser(id, requestDTO);
     }
 }

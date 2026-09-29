@@ -8,7 +8,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.Map;
 import com.tharun.employeetaskmanagement.exception.TaskSubmissionException;
 import com.tharun.employeetaskmanagement.exception.InactiveEmployeeException;
-
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import java.util.LinkedHashMap;
 
 /*
  Handles exceptions thrown by REST controllers.
@@ -116,5 +117,30 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(error);
+    }
+    /*
+     * Handles validation errors from @Valid request bodies.
+     * Returns HTTP 400 with the invalid fields and their messages.
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> handleValidationErrors(
+            MethodArgumentNotValidException exception) {
+
+        // Store validation errors as field → message.
+        Map<String, String> errors = new LinkedHashMap<>();
+
+        // Collect each field's validation error.
+        exception.getBindingResult()
+                .getFieldErrors()
+                .forEach(error ->
+                        errors.put(
+                                error.getField(),
+                                error.getDefaultMessage()
+                        ));
+
+        // Return the validation errors with HTTP 400.
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(errors);
     }
 }

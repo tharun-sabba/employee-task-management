@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import com.tharun.employeetaskmanagement.exception.UserNotFoundException;
+import com.tharun.employeetaskmanagement.dto.UserResponseDTO;
+import com.tharun.employeetaskmanagement.dto.UserRequestDTO;
 
 // Marks this class as a Service component.
 // Spring will manage this class and use it for business logic.
@@ -20,52 +22,104 @@ public class UserService {
         this.userRepository = userRepository;
     }
 
-    // Saves a User to the database through the repository.
-    public User saveUser(User user) {
-        return userRepository.save(user);
+    /*
+     * Creates a new User from the request DTO
+     * and returns a safe response DTO.
+     */
+    public UserResponseDTO saveUser(UserRequestDTO requestDTO) {
+
+        // Convert the API request into a database entity.
+        User user = convertToEntity(requestDTO);
+
+        // Save the User entity in the database.
+        User savedUser = userRepository.save(user);
+
+        // Convert the saved entity into a safe API response.
+        return convertToResponseDTO(savedUser);
     }
 
     /*
-      Retrieves all users from the database.
-      The repository provides the findAll() method through JpaRepository.
+     * Retrieves all users and converts them to response DTOs.
      */
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserResponseDTO> getAllUsers() {
+
+        // Fetch all users from the database.
+        return userRepository.findAll()
+                .stream()
+                .map(this::convertToResponseDTO)
+                .toList();
     }
     /*
-     * Retrieves a user by their ID.
-     * If the user does not exist, an exception is thrown.
+     * Retrieves a user by ID and returns a safe response DTO.
      */
-    public User getUserById(Long id) {
+    public UserResponseDTO getUserById(Long id) {
 
-        // Search the database for the user with the given ID.
-        return userRepository.findById(id)
+        // Find the user in the database.
+        User user = userRepository.findById(id)
                 .orElseThrow(() ->
-                        new UserNotFoundException("User not found with id: " + id));
+                        new UserNotFoundException(
+                                "User not found with id: " + id));
+
+        // Convert the entity to a response DTO.
+        return convertToResponseDTO(user);
     }
     /*
-     * Updates an existing user using the given ID.
-     * First finds the user, updates its values, and then saves it.
+     * Updates an existing User using data from the request DTO.
+     * Returns a safe response DTO without the password.
      */
-    public User updateUser(Long id, User updatedUser) {
+    public UserResponseDTO updateUser(
+            Long id,
+            UserRequestDTO requestDTO) {
 
         // Find the existing user in the database.
         User existingUser = userRepository.findById(id)
-                .orElse(null);
+                .orElseThrow(() ->
+                        new UserNotFoundException(
+                                "User not found with id: " + id));
 
-        // If the user does not exist, return null for now.
-        if (existingUser == null) {
-            return null;
-        }
+        // Update the user's details from the request DTO.
+        existingUser.setEmail(requestDTO.getEmail());
+        existingUser.setPassword(requestDTO.getPassword());
+        existingUser.setRole(requestDTO.getRole());
+        existingUser.setStatus(requestDTO.getStatus());
 
-        // Update the existing user's details.
-        existingUser.setEmail(updatedUser.getEmail());
-        existingUser.setPassword(updatedUser.getPassword());
-        existingUser.setRole(updatedUser.getRole());
-        existingUser.setStatus(updatedUser.getStatus());
+        // Save the updated user.
+        User savedUser = userRepository.save(existingUser);
 
-        // Save the updated user back to the database.
-        return userRepository.save(existingUser);
+        // Convert the entity into a safe response DTO.
+        return convertToResponseDTO(savedUser);
+    }
+    /*
+     * Converts a User entity into a UserResponseDTO.
+     * Password is intentionally not copied to the DTO.
+     */
+    private UserResponseDTO convertToResponseDTO(User user) {
+
+        UserResponseDTO responseDTO = new UserResponseDTO();
+
+        // Copy only the fields that are safe to send to the client.
+        responseDTO.setId(user.getId());
+        responseDTO.setEmail(user.getEmail());
+        responseDTO.setRole(user.getRole());
+        responseDTO.setStatus(user.getStatus());
+
+        return responseDTO;
+    }
+    /*
+     * Converts a UserRequestDTO into a User entity.
+     * This keeps API input separate from the database entity.
+     */
+    private User convertToEntity(UserRequestDTO requestDTO) {
+
+        User user = new User();
+
+        // Copy the request data into the User entity.
+        user.setEmail(requestDTO.getEmail());
+        user.setPassword(requestDTO.getPassword());
+        user.setRole(requestDTO.getRole());
+        user.setStatus(requestDTO.getStatus());
+
+        return user;
     }
 }
 
