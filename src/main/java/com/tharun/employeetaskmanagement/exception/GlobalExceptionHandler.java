@@ -11,6 +11,8 @@ import com.tharun.employeetaskmanagement.exception.InactiveEmployeeException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import java.util.LinkedHashMap;
 
+import com.tharun.employeetaskmanagement.exception.InvalidCredentialsException;
+
 /*
  Handles exceptions thrown by REST controllers.
  This keeps error responses clean and consistent.
@@ -142,5 +144,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(errors);
+    }
+    /*
+     * Handles invalid login credentials.
+     */
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidCredentials(
+            InvalidCredentialsException exception) {
+
+        Map<String, String> error = new LinkedHashMap<>();
+        error.put("message", exception.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(error);
     }
 }
