@@ -1,9 +1,7 @@
 package com.tharun.employeetaskmanagement.service;
 
-import com.tharun.employeetaskmanagement.repository.TaskRepository;
-import com.tharun.employeetaskmanagement.repository.TaskReviewRepository;
-import com.tharun.employeetaskmanagement.repository.UserRepository;
-import org.springframework.stereotype.Service;
+import com.tharun.employeetaskmanagement.dto.TaskReviewRequestDTO;
+import com.tharun.employeetaskmanagement.dto.TaskReviewResponseDTO;
 import com.tharun.employeetaskmanagement.entity.Task;
 import com.tharun.employeetaskmanagement.entity.TaskReview;
 import com.tharun.employeetaskmanagement.entity.User;
@@ -11,30 +9,25 @@ import com.tharun.employeetaskmanagement.enums.ReviewDecision;
 import com.tharun.employeetaskmanagement.enums.TaskStatus;
 import com.tharun.employeetaskmanagement.exception.TaskNotFoundException;
 import com.tharun.employeetaskmanagement.exception.UserNotFoundException;
+import com.tharun.employeetaskmanagement.repository.TaskRepository;
+import com.tharun.employeetaskmanagement.repository.TaskReviewRepository;
+import com.tharun.employeetaskmanagement.repository.UserRepository;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 /*
  * Service layer for Task Review-related business logic.
- * It manages reviews and updates the related task.
+ * It handles review creation and retrieval.
  */
 @Service
 public class TaskReviewService {
 
-    // Repository used to save and retrieve task reviews.
     private final TaskReviewRepository taskReviewRepository;
-
-    // Repository used to find and update tasks.
     private final TaskRepository taskRepository;
-
-    // Repository used to find the User who performs the review.
     private final UserRepository userRepository;
 
-    /*
-     * Constructor injection.
-     * Spring provides all required repositories automatically.
-     */
     public TaskReviewService(
             TaskReviewRepository taskReviewRepository,
             TaskRepository taskRepository,
@@ -44,75 +37,116 @@ public class TaskReviewService {
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
     }
+
     /*
      * Reviews a submitted task.
-     * Only an Admin can review a task that is UNDER_REVIEW.
+     * Only an Admin can approve or request changes.
      */
-    public TaskReview reviewTask(
+    public TaskReviewResponseDTO reviewTask(
             Long taskId,
             Long reviewerId,
-            TaskReview review) {
+            TaskReviewRequestDTO requestDTO) {
 
-        // Find the task.
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() ->
                         new TaskNotFoundException(
                                 "Task not found with id: " + taskId));
 
-        // Find the user performing the review.
         User reviewer = userRepository.findById(reviewerId)
                 .orElseThrow(() ->
                         new UserNotFoundException(
                                 "User not found with id: " + reviewerId));
 
-        // Only Admin users can review tasks.
-        if (!"ADMIN".equals(reviewer.getRole())) {
-            throw new IllegalStateException(
+        /*
+         * Only Admin users are allowed to review tasks.
+         */
+        if (!"ADMIN".equalsIgnoreCase(reviewer.getRole())) {
+            throw new IllegalArgumentException(
                     "Only Admin users can review tasks");
         }
 
-        // Only tasks in UNDER_REVIEW status can be reviewed.
+        /*
+         * A task can only be reviewed after submission.
+         */
         if (task.getStatus() != TaskStatus.UNDER_REVIEW) {
-            throw new IllegalStateException(
-                    "Only tasks in UNDER_REVIEW status can be reviewed");
+            throw new IllegalArgumentException(
+                    "Task can only be reviewed when it is UNDER_REVIEW");
         }
 
-        // A review must contain a decision.
-        if (review.getDecision() == null) {
-            throw new IllegalStateException(
-                    "Review decision is required");
-        }
+        TaskReview review = new TaskReview();
 
-        // Connect the review to the task and reviewer.
         review.setTask(task);
         review.setReviewer(reviewer);
+        review.setComments(requestDTO.getComments());
+        review.setDecision(requestDTO.getDecision());
         review.setReviewedAt(LocalDateTime.now());
 
-        // Update the task according to the review decision.
-        if (review.getDecision() == ReviewDecision.APPROVED) {
+        /*
+         * Update the task status according to the review decision.
+         */
+        if (requestDTO.getDecision() == ReviewDecision.APPROVED) {
+
             task.setStatus(TaskStatus.COMPLETED);
-        } else {
+
+        } else if (requestDTO.getDecision()
+                == ReviewDecision.CHANGES_REQUESTED) {
+
             task.setStatus(TaskStatus.CHANGES_REQUESTED);
         }
 
-        // Save the review and updated task.
         TaskReview savedReview = taskReviewRepository.save(review);
+
         taskRepository.save(task);
 
-        return savedReview;
+        return convertToResponseDTO(savedReview);
     }
-    /*
-     * Retrieves all reviews for a specific task.
-     */
-    public List<TaskReview> getReviewsByTask(Long taskId) {
 
-        // Make sure the task exists first.
+    /*
+     * Retrieves all reviews for a particular task.
+     */
+    public List<TaskReviewResponseDTO> getReviewsByTask(
+            Long taskId) {
+
         taskRepository.findById(taskId)
                 .orElseThrow(() ->
                         new TaskNotFoundException(
                                 "Task not found with id: " + taskId));
 
-        // Return all reviews belonging to the task.
-        return taskReviewRepository.findByTaskId(taskId);
+        return taskReviewRepository.findByTaskId(taskId)
+                .stream()
+                .map(this::convertToResponseDTO)
+                .toList();
+    }
+
+    /*
+     * Converts a TaskReview entity into a safe response DTO.
+     */
+    private TaskReviewResponseDTO convertToResponseDTO(
+            TaskReview review) {
+
+        TaskReviewResponseDTO responseDTO =
+                new TaskReviewResponseDTO();
+
+        responseDTO.setId(review.getId());
+        responseDTO.setComments(review.getComments());
+        responseDTO.setDecision(review.getDecision());
+        responseDTO.setReviewedAt(review.getReviewedAt());
+
+        if (review.getTask() != null) {
+
+            responseDTO.setTaskId(review.getTask().getId());
+            responseDTO.setTaskTitle(review.getTask().getTitle());
+        }
+
+        if (review.getReviewer() != null) {
+
+            responseDTO.setReviewerId(
+                    review.getReviewer().getId());
+
+            responseDTO.setReviewerEmail(
+                    review.getReviewer().getEmail());
+        }
+
+        return responseDTO;
     }
 }

@@ -1,47 +1,51 @@
 package com.tharun.employeetaskmanagement.controller;
 
-import com.tharun.employeetaskmanagement.entity.TaskReview;
+import com.tharun.employeetaskmanagement.dto.TaskReviewRequestDTO;
+import com.tharun.employeetaskmanagement.dto.TaskReviewResponseDTO;
 import com.tharun.employeetaskmanagement.service.TaskReviewService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
+
 /*
  * Controller for handling Task Review API requests.
+ * It receives HTTP requests and passes the work to TaskReviewService.
  */
 @RestController
+@RequestMapping("/api/tasks")
 public class TaskReviewController {
 
     private final TaskReviewService taskReviewService;
 
-    /*
-     * Constructor injection.
-     */
     public TaskReviewController(TaskReviewService taskReviewService) {
         this.taskReviewService = taskReviewService;
     }
 
     /*
-     * Reviews a task using the reviewer ID from the request parameter.
+     * Creates a review for a submitted task.
+     * The reviewer ID is received as a request parameter.
      */
-    @PostMapping("/api/tasks/{taskId}/reviews")
-    public TaskReview reviewTask(
+    @PostMapping("/{taskId}/reviews")
+    public TaskReviewResponseDTO reviewTask(
             @PathVariable Long taskId,
             @RequestParam Long reviewerId,
-            @RequestBody TaskReview review) {
+            @Valid @RequestBody TaskReviewRequestDTO requestDTO) {
 
-        // Send the review information to the Service layer.
         return taskReviewService.reviewTask(
                 taskId,
                 reviewerId,
-                review);
+                requestDTO
+        );
     }
+
     /*
-     * Retrieves all reviews associated with a task.
+     * Retrieves all reviews for a particular task.
      */
-    @GetMapping("/api/tasks/{taskId}/reviews")
-    public List<TaskReview> getReviewsByTask(
+    @GetMapping("/{taskId}/reviews")
+    public List<TaskReviewResponseDTO> getReviewsByTask(
             @PathVariable Long taskId) {
 
-        // Ask the Service layer for the task's review history.
         return taskReviewService.getReviewsByTask(taskId);
     }
 }
