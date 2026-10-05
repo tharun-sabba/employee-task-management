@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.tharun.employeetaskmanagement.exception.EmployeeNotFoundException;
 
 /*
  * Service layer for Task-related business logic.
@@ -230,5 +231,27 @@ public class TaskService {
         }
 
         return responseDTO;
+    }
+    /*
+     * Retrieves tasks belonging to the currently logged-in employee.
+     * The User ID comes from the JWT.
+     */
+    public List<TaskResponseDTO> getMyTasks(Long userId) {
+
+        /*
+         * Find the employee linked to the logged-in User.
+         */
+        Employee employee = employeeRepository.findByUserId(userId)
+                .orElseThrow(() ->
+                        new EmployeeNotFoundException(
+                                "Employee not found for user id: " + userId));
+
+        /*
+         * Fetch only tasks assigned to this employee.
+         */
+        return taskRepository.findByAssignedToId(employee.getId())
+                .stream()
+                .map(this::convertToResponseDTO)
+                .toList();
     }
 }

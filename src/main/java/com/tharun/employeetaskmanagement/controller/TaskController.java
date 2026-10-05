@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 /*
  * Controller for handling Task-related API requests.
@@ -83,5 +85,20 @@ public class TaskController {
             @RequestParam Long employeeId) {
 
         return taskService.submitTask(taskId, employeeId);
+    }
+    /*
+     * Retrieves tasks assigned to the currently logged-in employee.
+     * The User ID is taken from the JWT instead of the URL.
+     */
+    @GetMapping("/my")
+    public List<TaskResponseDTO> getMyTasks(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        /*
+         * The JWT subject contains the User ID.
+         */
+        Long userId = Long.valueOf(jwt.getSubject());
+
+        return taskService.getMyTasks(userId);
     }
 }

@@ -81,4 +81,18 @@ public class LoginResponseDTO {
     public void setMessage(String message) {
         this.message = message;
     }
+    private String token;
+    /*
+     * Returns the JWT access token.
+     */
+    public String getToken() {
+        return token;
+    }
+
+    /*
+     * Sets the JWT access token.
+     */
+    public void setToken(String token) {
+        this.token = token;
+    }
 }
